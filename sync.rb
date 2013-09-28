@@ -1,13 +1,28 @@
 require 'scribe'
 require 'file-monitor'
 require 'socket'
+require 'yaml'
 
 class FileMonitorObj
-  attr_accessor :path, :file_name
+  attr_accessor :absolute_path, :dir_disallow, :file_disallow, :file_allow
+  def initialize absolute_path, dir_disallow, file_disallow, file_allow
+    @absolute_path = absolute_path
+    @dir_disallow = dir_disallow
+    @file_disallow = file_disallow
+    @file_allow = file_allow
+  end
 end
 
+a = []
+a1 = FileMonitorObj.new '/data/log', '/\.git|\.svn/', '/.*/', '/\.rb$/'
+a << a1
+File.open("sync.yaml", "w") do |io|
+  YAML.dump(a, io)
+end
+
+prompt = 'ruby sync.rb start|stop|status'
 if ARGV.length < 1
-  puts 'ruby sync.rb (start Absolute_Path;Absolute_Path)|stop|status'
+  puts prompt
   exit!
 end
 
@@ -15,20 +30,17 @@ cmd = ARGV[0]
 dir = ARGV[1]
 
 case cmd
-  when 'start'
-  when 'stop'
-  when 'status'
-  else
-    puts 'ruby sync.rb {start|stop|status|restart} Absolute_Path'
-    exit!
-end
-
-if ARGV[1][0]=='/'
-  
+when 'start'
+  YAML.load_file("sync.yaml").each do |obj|
+    puts obj.absolute_path
+  end
+when 'stop'
+when 'status'
 else
-  puts 'ruby sync.rb {start|stop|status|restart} Absolute_Path'
+  puts prompt
   exit!
 end
+
 puts "cmd: #{cmd}"
 puts "dir: #{dir}"
 $exit_flag= false;
@@ -43,8 +55,8 @@ begin
 # end
 s.puts 'exit'
 s.close               # Close the socket when done
-  
-  exit!
+
+exit!
 rescue Exception=>e
   puts "eee:#{e}"
 end
@@ -59,9 +71,9 @@ threads << Thread.new {
     client = server.accept
     # client.puts(dir) # Send the time to the client
     cmd = client.gets
-      puts cmd
+    puts cmd
     if cmd.chop == "exit"
-      
+
       $exit_flag= true;
       puts "exit_flag:#{$exit_flag}"
       break;
@@ -74,16 +86,16 @@ threads << Thread.new {
 threads << Thread.new {
   puts 'hahah'
   m = FileMonitor.new(dir)
-m.filter_dirs {
-  disallow /\.git|\.svn/
-}
+  m.filter_dirs {
+    disallow /\.git|\.svn/
+  }
 
 # record .rb files only
 m.filter_files {
   disallow  /.*/
   allow /\.rb$/
 }
-  
+
 m.run do|events|
   break if $exit_flag
   puts events.size()

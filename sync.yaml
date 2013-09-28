@@ -1,0 +1,6 @@
+---
+- !ruby/object:FileMonitorObj
+  absolute_path: /data/log
+  dir_disallow: /\.git|\.svn/
+  file_disallow: /.*/
+  file_allow: /\.rb$/
