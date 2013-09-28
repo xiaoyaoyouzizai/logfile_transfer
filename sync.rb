@@ -27,7 +27,6 @@ if ARGV.length < 1
 end
 
 cmd = ARGV[0]
-dir = ARGV[1]
 
 case cmd
 when 'start'
@@ -42,7 +41,7 @@ else
 end
 
 puts "cmd: #{cmd}"
-puts "dir: #{dir}"
+
 $exit_flag= false;
 hostname = 'localhost'
 port = 2000
