@@ -13,12 +13,12 @@ class FileMonitorObj
   end
 end
 
-a = []
-a1 = FileMonitorObj.new '/data/log', '/\.git|\.svn/', '/.*/', '/\.rb$/'
-a << a1
-File.open("sync.yaml", "w") do |io|
-  YAML.dump(a, io)
-end
+# a = []
+# a1 = FileMonitorObj.new '/data/log', '/\.git|\.svn/', '/.*/', '/\.rb$/'
+# a << a1
+# File.open("sync.yaml", "w") do |io|
+#   YAML.dump(a, io)
+# end
 
 prompt = 'ruby sync.rb start|stop|status'
 if ARGV.length < 1
