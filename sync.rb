@@ -3,6 +3,9 @@ require 'file-monitor'
 require 'socket'
 require 'yaml'
 
+@hostname = 'localhost'
+@port = 2000
+
 class FileMonitorObj
   attr_accessor :absolute_path, :dir_disallow, :file_disallow, :file_allow
   def initialize absolute_path, dir_disallow, file_disallow, file_allow
@@ -20,85 +23,109 @@ end
 #   YAML.dump(a, io)
 # end
 
-prompt = 'ruby sync.rb start|stop|status'
+def conn cmd
+  s = TCPSocket.open(@hostname, @port)
+  s.puts cmd
+
+  while line = s.gets
+    puts line.chop
+  end
+
+  true
+rescue =>e
+  puts "#{e}"
+  false
+ensure  
+  s.close unless s==nil
+end
+
+stop_cmd_file_name = '.sync_cmd_stop'
+prompt_cmdline = 'ruby sync.rb start|stop|status'
+prompt_running = 'sync is running!'
+prompt_exiting = 'sync is exiting!'
+prompt_starting = 'sync is starting!'
+prompt_no_running = 'sync is not running!'
+
 if ARGV.length < 1
-  puts prompt
+  puts prompt_cmdline
   exit!
 end
 
 cmd = ARGV[0]
-
-case cmd
-when 'start'
-  YAML.load_file("sync.yaml").each do |obj|
-    puts obj.absolute_path
-  end
-when 'stop'
-when 'status'
-else
-  puts prompt
-  exit!
-end
-
 puts "cmd: #{cmd}"
 
 $exit_flag= false;
-hostname = 'localhost'
-port = 2000
 
-begin
-  s = TCPSocket.open(hostname, port)
+case cmd
+when 'start'
+  unless conn 'status'
+    puts prompt_starting
+    threads = []
 
-# while line = s.gets   # Read lines from the socket
-#   puts line.chop      # And print with platform line terminator
-# end
-s.puts 'exit'
-s.close               # Close the socket when done
+    YAML.load_file('sync.yaml').each do |obj|
+      puts obj.absolute_path
+      puts obj.dir_disallow
+      puts obj.file_disallow
+      puts obj.file_allow
 
-exit!
-rescue Exception=>e
-  puts "eee:#{e}"
-end
+      threads << Thread.new do
+        m = FileMonitor.new(obj.absolute_path)
+        
+        m.filter_dirs do
+          disallow /loc$/
+        end
 
+        m.filter_files do
+          disallow /.*/
+          allow /\.log\.|\.sync_cmd_stop$/
+        end
 
-
-threads = []
-
-threads << Thread.new {  
-  server = TCPServer.open(port)
-  loop {
-    client = server.accept
-    # client.puts(dir) # Send the time to the client
-    cmd = client.gets
-    puts cmd
-    if cmd.chop == "exit"
-
-      $exit_flag= true;
-      puts "exit_flag:#{$exit_flag}"
-      break;
+        m.run do |events|
+          break if $exit_flag
+          puts events.size()
+          puts "do something"
+        end
+        puts 'FileMonitor thread exit!'
+      end
     end
-    client.close                # Disconnect from the client
-  }
-}
 
+    threads << Thread.new do
+      server = TCPServer.open(@port)
 
-threads << Thread.new {
-  puts 'hahah'
-  m = FileMonitor.new(dir)
-  m.filter_dirs {
-    disallow /\.git|\.svn/
-  }
+      loop do
+        client = server.accept
 
-# record .rb files only
-m.filter_files {
-  disallow  /.*/
-  allow /\.rb$/
-}
+        cmd = client.gets
 
-m.run do|events|
-  break if $exit_flag
-  puts events.size()
-  puts "do something"
+        case cmd.chop
+        when 'stop'
+          client.puts(prompt_exiting)
+          $exit_flag = true;
+
+          YAML.load_file('sync.yaml').each do |obj|
+            system 'touch ' + obj.absolute_path + '/' + stop_cmd_file_name
+          end
+          sleep 1
+          YAML.load_file('sync.yaml').each do |obj|
+            system 'unlink ' + obj.absolute_path + '/' + stop_cmd_file_name
+          end
+          break;
+        when 'status'
+          client.puts(prompt_running)
+        end
+
+        puts 'client.close'
+        client.close
+      end
+
+      puts 'server.close'
+      server.close unless server==null
+    end
+
+    threads.each { |t| t.join }
+  end
+when /stop|status/
+  puts prompt_no_running unless conn cmd
+else
+  puts prompt_cmdline
 end
-}
-threads.each { |t| t.join }
