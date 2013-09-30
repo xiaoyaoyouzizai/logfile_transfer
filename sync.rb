@@ -17,7 +17,7 @@ class FileMonitorObj
 end
 
 # a = []
-# a1 = FileMonitorObj.new '/data/log', '/\.git|\.svn/', '/.*/', '/\.rb$/'
+# a1 = FileMonitorObj.new '/data/webroot/log', '/loc$/', '/.*/', '/\.log\.|\.sync_cmd_stop$/'
 # a << a1
 # File.open("sync.yaml", "w") do |io|
 #   YAML.dump(a, io)
