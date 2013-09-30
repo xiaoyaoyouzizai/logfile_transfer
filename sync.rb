@@ -119,7 +119,7 @@ when 'start'
       end
 
       puts 'server.close'
-      server.close unless server==null
+      server.close unless server==nil
     end
 
     threads.each { |t| t.join }
