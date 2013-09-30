@@ -82,9 +82,13 @@ when 'start'
 
         m.run do |events|
           break if $exit_flag
-          puts events.size()
-          puts "do something"
+          events.each do |event|
+            if event.flags[0] == :modify
+              puts event.absolute_name
+            end
+          end
         end
+        
         puts 'FileMonitor thread exit!'
       end
     end
