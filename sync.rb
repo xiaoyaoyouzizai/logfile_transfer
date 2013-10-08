@@ -102,7 +102,6 @@ when 'start'
               # puts 'from map'
             else
               # puts 'init'
-
               Dir.mkdir loc_path unless File.exist? loc_path
 
               if File.exist? loc_file_name
@@ -124,7 +123,7 @@ when 'start'
               end
             end
 
-            break
+            #     break
             #   end
             # end
           end
