@@ -83,7 +83,8 @@ when 'start'
       m.run do |events|
         break if $exit_flag
         events.each do |event|
-          if event.flags[0] == :modify
+          flags = event.flags
+          if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
             fn = event.absolute_name
             # for pattern, handler in obj.patterns
             #   if fn =~ /#{pattern}/
