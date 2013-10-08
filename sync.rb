@@ -98,7 +98,11 @@ when 'start'
 
             log_file, loc_file = files[fn]
 
-            unless loc_file
+            if loc_file
+              # puts 'from map'
+            else
+              # puts 'init'
+
               Dir.mkdir loc_path unless File.exist? loc_path
 
               if File.exist? loc_file_name
