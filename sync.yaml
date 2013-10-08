@@ -4,3 +4,19 @@
   dir_disallow: loc$
   file_disallow: .*
   file_allow: \.log\.
+  patterns:
+  - - gamestart\.log\.
+    - - ToDataCenter
+      - GameStartLogHandler
+  - - gameexit\.log\.
+    - - ToDataCenter 
+      - GameExitLogHandler
+- !ruby/object:FileMonitorObj
+  absolute_path: /data/webroot/tlog
+  dir_disallow: loc$
+  file_disallow: .*
+  file_allow: \.log\.
+  patterns:
+  - - gamestart\.log\.
+    - - ToDataCenter
+      - GameStartLogHandler
