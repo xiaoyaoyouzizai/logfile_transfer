@@ -32,7 +32,7 @@ ensure
   s.close unless s==nil
 end
 
-stop_cmd_file_name = 'sync_cmd_stop'
+stop_cmd_file_name = '.sync_cmd_stop'
 prompt_cmdline = 'ruby sync.rb start|stop|status'
 prompt_running = 'sync is running!'
 prompt_exiting = 'sync is exiting!'
