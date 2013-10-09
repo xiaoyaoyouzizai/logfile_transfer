@@ -34,6 +34,16 @@ ensure
   s.close unless s==nil
 end
 
+def close files, curr_time = 0
+  files.each do |k, v|
+    if v[2] - curr_time > 86400000
+      puts "close #{k}"
+      v[0].close
+      v[1].close
+    end
+  end
+end
+
 stop_cmd_file_name = '.sync_cmd_stop'
 prompt_cmdline = 'ruby sync.rb start|stop|status'
 prompt_running = 'sync is running!'
@@ -111,7 +121,9 @@ when 'start'
                 loc_file = File.new(loc_file_name, 'w+')
               end
               log_file = File.new(fn)
-              files[fn] = [log_file, loc_file]
+              files[fn] = [log_file, loc_file, Time.now.to_i]
+
+              close files, Time.now.to_i
             end
 
             while line = log_file.gets
@@ -157,6 +169,7 @@ when 'start'
         end
         break;
       when 'status'
+        close files, Time.now.to_i
         client.puts(prompt_running)
       end
 
@@ -164,8 +177,11 @@ when 'start'
       client.close
     end
 
-    puts 'server.close'
-    server.close unless server==nil
+    close files
+    unless server==nil
+      puts 'server.close'
+      server.close
+    end
   end
 
   threads.each { |t| t.join }
