@@ -1,5 +1,5 @@
 logfile-transfer
 ================
 
-Ruby monitoring and transform logfiles to scribe
+Ruby monitoring and transform logfiles
 
