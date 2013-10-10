@@ -1,13 +1,30 @@
 # encoding: utf-8
-require 'daemons'
-require 'scribe'
+
 require 'file-monitor'
 require 'socket'
 require 'yaml'
 
-module logfile-transfer
-  @hostname = 'localhost'
-  @port = 2000
+module LogfileTransfer
+  Stop_cmd_file_name = '.sync_cmd_stop'
+  Prompt_cmdline = 'ruby sync.rb start [config_file]|stop|status'
+  Prompt_running = 'sync is running.'
+  Prompt_exiting = 'sync is exiting.'
+  Prompt_starting = 'sync is starting.'
+  Prompt_no_running = 'sync no running.'
+
+  def initialize
+    @hostname = 'localhost'
+    @port = 2000
+    @files = {}
+    @threads = []
+    @handlers = {}
+  end
+
+  class Handler
+    def handleMessage
+      raise NotImplementedError.new("#{self.class.name}#area is abstract method.")
+    end
+  end
 
   class FileMonitorObj
     attr_accessor :absolute_path, :dir_disallow, :file_disallow, :file_allow, :patterns
@@ -18,6 +35,20 @@ module logfile-transfer
       @file_allow = file_allow
       @patterns = []
     end
+  end
+
+  def daemonize_app working_directory
+    if RUBY_VERSION < "1.9"
+      exit if fork
+      Process.setsid
+      exit if fork
+      Dir.chdir working_directory
+      STDIN.reopen "/dev/null"
+      STDOUT.reopen "/dev/null", "a"
+      STDERR.reopen "/dev/null", "a"
+    else
+      Process.daemon
+    end 
   end
 
   def conn cmd
@@ -35,8 +66,6 @@ module logfile-transfer
   ensure  
     s.close unless s==nil
   end
-
-  @files = {}
 
   def close_files curr_time = 0
     if curr_time == 0
@@ -59,66 +88,64 @@ module logfile-transfer
     end
   end
 
-  stop_cmd_file_name = '.sync_cmd_stop'
-  prompt_cmdline = 'ruby sync.rb start [config_file]|stop|status'
-  prompt_running = 'sync is running!'
-  prompt_exiting = 'sync is exiting!'
-  prompt_starting = 'sync is starting!'
-  prompt_no_running = 'sync is not running!'
+  def transfer log_file_name obj
+    for pattern, handler_names in obj.patterns
+      if log_file_name =~ /#{pattern}/
+        index = log_file_name.rindex('/')
+        log_path = log_file_name[0, index]
+        log_fn = log_file_name[index..log_file_name.length]
 
-  class Transfer
-  end
+        loc_path = "#{log_path}/.loc"
+        loc_file_name = "#{loc_path}#{log_fn}"
 
-  class Handler
-  end
+        log_file, loc_file, open_time, line_count = @files[log_file_name]
 
-  if ARGV.length < 1
-    puts prompt_cmdline
-    exit
-  end
+        unless log_file
+          Dir.mkdir loc_path unless File.exist? loc_path
 
-  working_directory = File.expand_path(File.dirname(__FILE__))
-  # puts working_directory
+          if File.exist? loc_file_name
+            loc_file = File.new(loc_file_name, 'r+')
+          else
+            loc_file = File.new(loc_file_name, 'w+')
+          end
+          log_file = File.new(log_file_name)
+          @files[log_file_name] = [log_file, loc_file, Time.now.to_i, 0]
 
-  cmd = ARGV[0]
-  # puts "cmd: #{cmd}"
+          close_files Time.now.to_i
+        end
 
-  $exit_flag = false;
+        while line = log_file.gets
+          loc = loc_file.gets
+          # puts "loc: #{loc}"
+          unless loc
+            line_count += 1
+            fail = false
 
-  case cmd
-  when 'start'
-    if ARGV.length < 2
-      config_file = "#{working_directory}/sync.yaml"
-    elsif ARGV[1][0] == '/'
-      config_file = ARGV[1]
-    else
-      config_file = "#{working_directory}/#{ARGV[1]}"
+            handler_names.each do |handler_name|
+              begin
+                # puts line
+                handler = @handlers[handler_name]
+                handler.handleMessage(log_path, log_fn, line, line_count) unless handler == nil
+              rescue => err
+                puts err
+                fail = true
+              end
+            end
+
+            if fail
+              loc_file.puts "#{line_count},#{line.chop}"
+            else
+              loc_file.puts "#{line_count}"
+            end
+          end
+        end
+
+        break
+      end
     end
+  end
 
-    config_file_title = "config file: #{config_file}"
-
-    unless File.exist? config_file
-      puts "#{config_file_title} is not exist!"
-      exit
-    end
-
-    exit if conn 'status'
-
-    puts prompt_starting
-
-    Daemons.daemonize
-
-    # exit if fork
-    # Dir.chdir working_directory
-    # File.umask 0000
-    # STDIN.reopen "/dev/null"
-    # STDOUT.reopen "/dev/null", "a"
-    # STDERR.reopen STDOUT
-
-    threads = []
-
-    scribe_client = Scribe.new('127.0.0.1:1463')
-
+  def daemon
     YAML.load_file(config_file).each do |obj|
       puts obj.absolute_path
       puts obj.dir_disallow
@@ -128,68 +155,25 @@ module logfile-transfer
         puts "#{pattern}: #{handler}"
       end
 
-      threads << Thread.new do
+      @threads << Thread.new do
 
         m = FileMonitor.new(obj.absolute_path)
 
         m.filter_dirs do
-        disallow /#{obj.dir_disallow}/
-      end
+          disallow /#{obj.dir_disallow}/
+        end
 
-      m.filter_files do
-        disallow /#{obj.file_disallow}/
-        allow /#{obj.file_allow}|#{stop_cmd_file_name}$/
-      end
+        m.filter_files do
+          disallow /#{obj.file_disallow}/
+          allow /#{obj.file_allow}|#{Stop_cmd_file_name}$/
+        end
 
-      m.run do |events|
-        break if $exit_flag
-        events.each do |event|
-          flags = event.flags
-          if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
-            fn = event.absolute_name
-              # for pattern, handler in obj.patterns
-              #   if fn =~ /#{pattern}/
-              index = fn.rindex('/')
-              dot_index = fn.index('.')
-
-              tag = fn[index + 1..dot_index - 1]
-              # puts tag
-
-              loc_path = "#{fn[0, index]}/.loc"
-              loc_file_name = "#{loc_path}#{fn[index, fn.length]}"
-
-              log_file, loc_file = @files[fn]
-
-              if loc_file
-                # puts 'from map'
-              else
-                # puts 'init'
-                Dir.mkdir loc_path unless File.exist? loc_path
-
-                if File.exist? loc_file_name
-                  loc_file = File.new(loc_file_name, 'r+')
-                else
-                  loc_file = File.new(loc_file_name, 'w+')
-                end
-                log_file = File.new(fn)
-                @files[fn] = [log_file, loc_file, Time.now.to_i]
-
-                close_files Time.now.to_i
-              end
-
-              while line = log_file.gets
-                loc = loc_file.gets
-                # puts "loc: #{loc}"
-                unless loc
-                  # puts 'sent'
-                  scribe_client.log(line.chop, tag)
-                  loc_file.puts '0'
-                end
-              end
-
-              #     break
-              #   end
-              # end
+        m.run do |events|
+          break if $exit_flag
+          events.each do |event|
+            flags = event.flags
+            if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
+              transfer event.absolute_name obj
             end
           end
         end
@@ -198,7 +182,7 @@ module logfile-transfer
       end
     end
 
-    threads << Thread.new do
+    @threads << Thread.new do
       server = TCPServer.open(@hostname, @port)
 
       loop do
@@ -208,20 +192,26 @@ module logfile-transfer
 
         case cmd.chop
         when 'stop'
-          client.puts(prompt_exiting)
+          client.puts(Prompt_exiting)
           $exit_flag = true;
 
-          YAML.load_file('sync.yaml').each do |obj|
-            system 'touch ' + obj.absolute_path + '/' + stop_cmd_file_name
+          YAML.load_file(config_file).each do |obj|
+            system "touch #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
+
           sleep 1
-          YAML.load_file('sync.yaml').each do |obj|
-            system 'unlink ' + obj.absolute_path + '/' + stop_cmd_file_name
+
+          YAML.load_file(config_file).each do |obj|
+            system "unlink #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
+
+          puts 'client.close'
+          client.close
+
           break;
         when 'status'
           close_files Time.now.to_i
-          client.puts(prompt_running)
+          client.puts(Prompt_running)
           client.puts(config_file_title)
         end
 
@@ -239,10 +229,53 @@ module logfile-transfer
       end
     end
 
-    threads.each { |t| t.join }
-  when /stop|status/
-    puts prompt_no_running unless conn cmd
-  else
-    puts prompt_cmdline
+    @threads.each { |t| t.join }
+  end
+
+
+  def run handlers
+    @handlers = handlers
+    if ARGV.length < 1
+      puts Prompt_cmdline
+      exit
+    end
+
+    working_directory = File.expand_path(File.dirname(__FILE__))
+    # puts working_directory
+
+    cmd = ARGV[0]
+    # puts "cmd: #{cmd}"
+
+    $exit_flag = false;
+
+    case cmd
+    when 'start'
+      if ARGV.length < 2
+        config_file = "#{working_directory}/sync.yaml"
+      elsif ARGV[1][0] == '/'
+        config_file = ARGV[1]
+      else
+        config_file = "#{working_directory}/#{ARGV[1]}"
+      end
+
+      config_file_title = "config file: #{config_file}"
+
+      unless File.exist? config_file
+        puts "#{config_file_title} is not exist!"
+        exit
+      end
+
+      exit if conn 'status'
+
+      puts Prompt_starting
+
+      # daemonize_app working_directory
+
+      daemon
+    when /stop|status/
+      puts Prompt_no_running unless conn cmd
+    else
+      puts Prompt_cmdline
+    end
   end
 end
