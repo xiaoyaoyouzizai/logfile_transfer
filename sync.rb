@@ -1,5 +1,4 @@
 # encoding: utf-8
-require 'daemons'
 require 'scribe'
 require 'file-monitor'
 require 'socket'
@@ -19,6 +18,20 @@ class FileMonitorObj
   end
 end
 
+def daemonize_app working_directory
+  if RUBY_VERSION < "1.9"
+    exit if fork
+    Process.setsid
+    exit if fork
+    Dir.chdir working_directory
+    STDIN.reopen "/dev/null"
+    STDOUT.reopen "/dev/null", "a"
+    STDERR.reopen "/dev/null", "a"
+  else
+    Process.daemon
+  end 
+end
+
 def conn cmd
   s = TCPSocket.open(@hostname, @port)
   s.puts cmd
@@ -29,7 +42,7 @@ def conn cmd
 
   true
 rescue =>e
-  puts "#{e}"
+  # puts "#{e}"
   false
 ensure  
   s.close unless s==nil
@@ -64,7 +77,7 @@ prompt_cmdline = 'ruby sync.rb start [config_file]|stop|status'
 prompt_running = 'sync is running!'
 prompt_exiting = 'sync is exiting!'
 prompt_starting = 'sync is starting!'
-prompt_no_running = 'sync is not running!'
+prompt_no_running = 'sync no running!'
 
 class Transfer
 end
@@ -106,18 +119,11 @@ when 'start'
 
   puts prompt_starting
   
-  Daemons.daemonize
-
-  # exit if fork
-  # Dir.chdir working_directory
-  # File.umask 0000
-  # STDIN.reopen "/dev/null"
-  # STDOUT.reopen "/dev/null", "a"
-  # STDERR.reopen STDOUT
+  daemonize_app working_directory
 
   threads = []
 
-  scribe_client = Scribe.new('127.0.0.1:1463')
+  @scribe_client = Scribe.new('127.0.0.1:1463')
 
   YAML.load_file(config_file).each do |obj|
     puts obj.absolute_path
@@ -182,8 +188,13 @@ when 'start'
               # puts "loc: #{loc}"
               unless loc
                 # puts 'sent'
-                scribe_client.log(line.chop, tag)
-                loc_file.puts '0'
+                begin
+                  @scribe_client.log(line.chop, tag)
+                  loc_file.puts '0'
+                rescue => err
+                  puts err
+                  loc_file.puts "1,#{line.chop}"
+                end
               end
             end
 
@@ -211,13 +222,17 @@ when 'start'
         client.puts(prompt_exiting)
         $exit_flag = true;
 
-        YAML.load_file('sync.yaml').each do |obj|
+        YAML.load_file(config_file).each do |obj|
           system 'touch ' + obj.absolute_path + '/' + stop_cmd_file_name
         end
         sleep 1
-        YAML.load_file('sync.yaml').each do |obj|
+        YAML.load_file(config_file).each do |obj|
           system 'unlink ' + obj.absolute_path + '/' + stop_cmd_file_name
         end
+
+        puts 'client.close'
+        client.close
+
         break;
       when 'status'
         close_files Time.now.to_i
@@ -237,6 +252,7 @@ when 'start'
       puts 'server.close'
       server.close
     end
+    # exit
   end
 
   threads.each { |t| t.join }
