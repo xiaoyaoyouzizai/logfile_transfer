@@ -7,18 +7,17 @@ require 'yaml'
 module LogfileTransfer
   Stop_cmd_file_name = '.sync_cmd_stop'
   Prompt_cmdline = 'ruby your.rb start [config.yaml]|stop|status'
-  Prompt_running = 'sync is running.'
-  Prompt_exiting = 'sync is exiting.'
-  Prompt_starting = 'sync is starting.'
-  Prompt_no_running = 'sync no running.'
+  Prompt_running = 'daemon is running.'
+  Prompt_exiting = 'daemon is exiting.'
+  Prompt_starting = 'daemon is starting.'
+  Prompt_no_running = 'daemon no running.'
 
-  def initialize
-    @hostname = 'localhost'
-    @port = 0
-    @files = {}
-    @threads = []
-    @handlers = {}
-  end
+  @hostname = 'localhost'
+  @port = 2001
+  @files = {}
+  @threads = []
+  @handlers = {}
+  @daemon_log_file_name = 'daemon.log'
 
   class Handler
     def handle
@@ -37,7 +36,11 @@ module LogfileTransfer
     end
   end
 
-  def LogfileTransfer.daemonize_app working_directory
+  def self.log msg
+    @daemon_log_file.puts msg
+  end
+
+  def self.daemonize_app working_directory
     if RUBY_VERSION < "1.9"
       exit if fork
       Process.setsid
@@ -51,7 +54,7 @@ module LogfileTransfer
     end 
   end
 
-  def LogfileTransfer.conn cmd
+  def self.conn cmd
     s = TCPSocket.open(@hostname, @port)
     s.puts cmd
 
@@ -61,21 +64,22 @@ module LogfileTransfer
 
     true
   rescue =>e
-    puts "#{e}"
+    # puts "#{e}"
     false
   ensure  
     s.close unless s==nil
   end
 
-  def LogfileTransfer.close_files curr_time = 0
+  def self.close_files curr_time = 0
     if curr_time == 0
-      puts 'close all'
+      # puts 'close all of files'
       @files.each do |k, v|
         v[0].close
         v[1].close
       end
-      puts 'empty map'
+      # puts 'empty file map'
       @files = {}
+      @daemon_log_file.close
     else
       @files.each do |k, v|
         if (curr_time - v[2]) > 86400000
@@ -88,7 +92,7 @@ module LogfileTransfer
     end
   end
 
-  def LogfileTransfer.transfer log_file_name, obj
+  def self.transfer log_file_name, obj
     for pattern, handler_names in obj.patterns
       if log_file_name =~ /#{pattern}/
         index = log_file_name.rindex('/')
@@ -108,7 +112,7 @@ module LogfileTransfer
           else
             loc_file = File.new(loc_file_name, 'w+')
           end
-          log_file = File.new(log_file_name)
+          log_file = File.new(log_file_name, 'r')
           @files[log_file_name] = [log_file, loc_file, Time.now.to_i, 0]
 
           close_files Time.now.to_i
@@ -145,40 +149,44 @@ module LogfileTransfer
     end
   end
 
-  def LogfileTransfer.daemon
-    YAML.load_file(config_file).each do |obj|
-      puts obj.absolute_path
-      puts obj.dir_disallow
-      puts obj.file_disallow
-      puts obj.file_allow
-      obj.patterns.each do |pattern, handler|
-        puts "#{pattern}: #{handler}"
-      end
+  def self.daemon
+    YAML.load_file(@config_file).each do |obj|
+      # puts obj.absolute_path
+      # puts obj.dir_disallow
+      # puts obj.file_disallow
+      # puts obj.file_allow
+      # obj.patterns.each do |pattern, handler|
+      #   puts "#{pattern}: #{handler}"
+      # end
 
       @threads << Thread.new do
+        begin
+          m = FileMonitor.new(obj.absolute_path)
 
-        m = FileMonitor.new(obj.absolute_path)
 
-        m.filter_dirs do
-          disallow /#{obj.dir_disallow}/
-        end
+          m.filter_dirs do
+            disallow /#{obj.dir_disallow}/
+          end
 
-        m.filter_files do
-          disallow /#{obj.file_disallow}/
-          allow /#{obj.file_allow}|#{Stop_cmd_file_name}$/
-        end
+          m.filter_files do
+            disallow /#{obj.file_disallow}/
+            allow /#{obj.file_allow}|#{Stop_cmd_file_name}$/
+          end
 
-        m.run do |events|
-          break if $exit_flag
-          events.each do |event|
-            flags = event.flags
-            if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
-              transfer event.absolute_name obj
+          m.run do |events|
+            break if $exit_flag
+            events.each do |event|
+              flags = event.flags
+              if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
+                transfer event.absolute_name obj
+              end
             end
           end
-        end
 
-        puts 'FileMonitor thread exit!'
+          log "#{obj.absolute_path} file monitor thread exit."
+        rescue =>err
+          log err
+        end
       end
     end
 
@@ -195,36 +203,36 @@ module LogfileTransfer
           client.puts(Prompt_exiting)
           $exit_flag = true;
 
-          YAML.load_file(config_file).each do |obj|
+          YAML.load_file(@config_file).each do |obj|
             system "touch #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
 
           sleep 1
 
-          YAML.load_file(config_file).each do |obj|
+          YAML.load_file(@config_file).each do |obj|
             system "unlink #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
 
-          puts 'client.close'
+          # puts 'client.close'
           client.close
 
           break;
         when 'status'
           close_files Time.now.to_i
           client.puts(Prompt_running)
-          client.puts(config_file_title)
+          client.puts(@config_file_title)
         end
 
-        puts 'client.close'
+        # puts 'client.close'
         client.close
       end
 
       close_files
-      @files.each do |k, v|
-        puts "#{k}: #{v}"
-      end
-      unless server==nil
-        puts 'server.close'
+      # @files.each do |k, v|
+      #   puts "#{k}: #{v}"
+      # end
+      unless server == nil
+        # puts 'server.close'
         server.close
       end
     end
@@ -232,7 +240,7 @@ module LogfileTransfer
     @threads.each { |t| t.join }
   end
 
-  def LogfileTransfer.run argv, port, handlers, working_directory
+  def self.run argv, port, handlers, working_directory
     @port = port
     @handlers = handlers
 
@@ -249,17 +257,17 @@ module LogfileTransfer
     case cmd
     when 'start'
       if argv.length < 2
-        config_file = "#{working_directory}/config.yaml"
+        @config_file = "#{working_directory}/config.yaml"
       elsif argv[1][0] == '/'
-        config_file = argv[1]
+        @config_file = argv[1]
       else
-        config_file = "#{working_directory}/#{argv[1]}"
+        @config_file = "#{working_directory}/#{argv[1]}"
       end
 
-      config_file_title = "config file: #{config_file}"
+      @config_file_title = "config file: #{@config_file}"
 
-      unless File.exist? config_file
-        puts "#{config_file_title} is not exist!"
+      unless File.exist? @config_file
+        puts "#{@config_file_title} is not exist!"
         exit
       end
 
@@ -268,7 +276,9 @@ module LogfileTransfer
       puts Prompt_starting
 
       # daemonize_app working_directory
-
+      @daemon_log_file_name = "#{working_directory}/#{@daemon_log_file_name}"
+      @daemon_log_file = File.new @daemon_log_file_name, 'a'
+      log "-------------#{Time.now}-----------------"
       daemon
     when /stop|status/
       puts Prompt_no_running unless conn cmd

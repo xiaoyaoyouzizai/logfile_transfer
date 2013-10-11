@@ -1,5 +1,5 @@
 ---
-- !ruby/object:FileMonitorObj
+- !ruby/object:LogfileTransfer::FileMonitorObj
   absolute_path: /data/webroot/log
   dir_disallow: loc$
   file_disallow: .*
@@ -11,7 +11,7 @@
   - - gameexit\.log\.
     - - ToDataCenter 
       - GameExitLogHandler
-- !ruby/object:FileMonitorObj
+- !ruby/object:LogfileTransfer::FileMonitorObj
   absolute_path: /data/webroot/tlog
   dir_disallow: loc$
   file_disallow: .*
