@@ -6,7 +6,7 @@ require 'yaml'
 
 module LogfileTransfer
   Stop_cmd_file_name = '.sync_cmd_stop'
-  Prompt_cmdline = 'ruby sync.rb start [config_file]|stop|status'
+  Prompt_cmdline = 'ruby your.rb start [config.yaml]|stop|status'
   Prompt_running = 'sync is running.'
   Prompt_exiting = 'sync is exiting.'
   Prompt_starting = 'sync is starting.'
@@ -14,14 +14,14 @@ module LogfileTransfer
 
   def initialize
     @hostname = 'localhost'
-    @port = 2000
+    @port = 0
     @files = {}
     @threads = []
     @handlers = {}
   end
 
   class Handler
-    def handleMessage
+    def handle
       raise NotImplementedError.new("#{self.class.name}#area is abstract method.")
     end
   end
@@ -37,7 +37,7 @@ module LogfileTransfer
     end
   end
 
-  def daemonize_app working_directory
+  def LogfileTransfer.daemonize_app working_directory
     if RUBY_VERSION < "1.9"
       exit if fork
       Process.setsid
@@ -51,7 +51,7 @@ module LogfileTransfer
     end 
   end
 
-  def conn cmd
+  def LogfileTransfer.conn cmd
     s = TCPSocket.open(@hostname, @port)
     s.puts cmd
 
@@ -67,7 +67,7 @@ module LogfileTransfer
     s.close unless s==nil
   end
 
-  def close_files curr_time = 0
+  def LogfileTransfer.close_files curr_time = 0
     if curr_time == 0
       puts 'close all'
       @files.each do |k, v|
@@ -88,7 +88,7 @@ module LogfileTransfer
     end
   end
 
-  def transfer log_file_name obj
+  def LogfileTransfer.transfer log_file_name, obj
     for pattern, handler_names in obj.patterns
       if log_file_name =~ /#{pattern}/
         index = log_file_name.rindex('/')
@@ -125,7 +125,7 @@ module LogfileTransfer
               begin
                 # puts line
                 handler = @handlers[handler_name]
-                handler.handleMessage(log_path, log_fn, line, line_count) unless handler == nil
+                handler.handle(log_path, log_fn, line, line_count) unless handler == nil
               rescue => err
                 puts err
                 fail = true
@@ -145,7 +145,7 @@ module LogfileTransfer
     end
   end
 
-  def daemon
+  def LogfileTransfer.daemon
     YAML.load_file(config_file).each do |obj|
       puts obj.absolute_path
       puts obj.dir_disallow
@@ -232,30 +232,28 @@ module LogfileTransfer
     @threads.each { |t| t.join }
   end
 
-
-  def run handlers
+  def LogfileTransfer.run argv, port, handlers, working_directory
+    @port = port
     @handlers = handlers
-    if ARGV.length < 1
+
+    if argv.length < 1
       puts Prompt_cmdline
       exit
     end
 
-    working_directory = File.expand_path(File.dirname(__FILE__))
-    # puts working_directory
-
-    cmd = ARGV[0]
+    cmd = argv[0]
     # puts "cmd: #{cmd}"
 
     $exit_flag = false;
 
     case cmd
     when 'start'
-      if ARGV.length < 2
-        config_file = "#{working_directory}/sync.yaml"
-      elsif ARGV[1][0] == '/'
-        config_file = ARGV[1]
+      if argv.length < 2
+        config_file = "#{working_directory}/config.yaml"
+      elsif argv[1][0] == '/'
+        config_file = argv[1]
       else
-        config_file = "#{working_directory}/#{ARGV[1]}"
+        config_file = "#{working_directory}/#{argv[1]}"
       end
 
       config_file_title = "config file: #{config_file}"

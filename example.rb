@@ -1,6 +1,10 @@
+lib_dir = File.join File.dirname(__FILE__), 'lib'
+$:.unshift lib_dir unless $:.include? lib_dir
+
 # require 'scribe'
-load 'lib/logfile-transfer.rb'
-class test < LogfileTransfer::Handler
+require "logfile-transfer.rb"
+
+class Test < LogfileTransfer::Handler
 
   # dot_index = fn.index('.')
   # tag = fn[index + 1..dot_index - 1]
@@ -8,12 +12,13 @@ class test < LogfileTransfer::Handler
   # scribe_client = Scribe.new('127.0.0.1:1463')
   # puts 'sent'
   # scribe_client.log(line.chop, tag)
-  def handleMessage  log_path, log_fn, line, line_count
+
+  def handle log_path, log_fn, line, line_count
   	puts line
   end
 
 end
 
-handlers = {ToDataCenter : test.new}
+handlers = {ToDataCenter: Test.new}
 
-LogfileTransfer.run handlers
+LogfileTransfer.run ARGV, 2001, handlers, File.expand_path(File.dirname(__FILE__))
