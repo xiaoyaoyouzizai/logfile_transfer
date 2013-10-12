@@ -127,7 +127,7 @@ module LogfileTransfer
 
             handler_names.each do |handler_name|
               begin
-                # puts line
+                puts line
                 handler = @handlers[handler_name]
                 handler.handle(log_path, log_fn, line, line_count) unless handler == nil
               rescue => err
