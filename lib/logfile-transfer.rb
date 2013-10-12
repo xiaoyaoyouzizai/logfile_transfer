@@ -16,7 +16,6 @@ module LogfileTransfer
   @port = 2001
   @files = {}
   @threads = []
-  @handlers = {}
   @daemon_log_file_name = 'daemon.log'
 
   class Handler
@@ -93,13 +92,13 @@ module LogfileTransfer
   end
 
   def self.transfer log_file_name, obj
-    for pattern, handler_names in obj.patterns
+    for pattern, handlers in obj.patterns
       if log_file_name =~ /#{pattern}/
         index = log_file_name.rindex('/')
         log_path = log_file_name[0, index]
         log_fn = log_file_name[index..log_file_name.length]
 
-        loc_path = "#{log_path}/.loc"
+        loc_path = "#{log_path}/.2loc"
         loc_file_name = "#{loc_path}#{log_fn}"
 
         log_file, loc_file, open_time, line_count = @files[log_file_name]
@@ -114,30 +113,29 @@ module LogfileTransfer
           end
           log_file = File.new(log_file_name, 'r')
           @files[log_file_name] = [log_file, loc_file, Time.now.to_i, 0]
-
+          line_count = 0
           close_files Time.now.to_i
         end
 
         while line = log_file.gets
           loc = loc_file.gets
-          # puts "loc: #{loc}"
           unless loc
             line_count += 1
             fail = false
+            fail_handlers = []
 
-            handler_names.each do |handler_name|
+            handlers.each do |handler|
               begin
-                puts line
-                handler = @handlers[handler_name]
-                handler.handle(log_path, log_fn, line, line_count) unless handler == nil
+                handler.handle log_path, log_fn, line, line_count
               rescue => err
                 puts err
+                fail_handlers << handler.class
                 fail = true
               end
             end
 
             if fail
-              loc_file.puts "#{line_count},#{line.chop}"
+              loc_file.puts "#{line_count}, #{fail_handlers}"
             else
               loc_file.puts "#{line_count}"
             end
@@ -151,21 +149,22 @@ module LogfileTransfer
 
   def self.daemon
     YAML.load_file(@config_file).each do |obj|
-      # puts obj.absolute_path
-      # puts obj.dir_disallow
-      # puts obj.file_disallow
-      # puts obj.file_allow
-      # obj.patterns.each do |pattern, handler|
-      #   puts "#{pattern}: #{handler}"
-      # end
+      puts obj.absolute_path
+      puts obj.dir_disallow
+      puts obj.file_disallow
+      puts obj.file_allow
+      obj.patterns.each do |pattern, handler|
+        puts "#{pattern}: #{handler}"
+      end
 
       @threads << Thread.new do
-        begin
+        # begin
           m = FileMonitor.new(obj.absolute_path)
 
 
           m.filter_dirs do
             disallow /#{obj.dir_disallow}/
+            disallow /loc$/
           end
 
           m.filter_files do
@@ -178,15 +177,16 @@ module LogfileTransfer
             events.each do |event|
               flags = event.flags
               if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
-                transfer event.absolute_name obj
+                transfer event.absolute_name, obj
               end
             end
           end
 
           log "#{obj.absolute_path} file monitor thread exit."
-        rescue =>err
-          log err
-        end
+        # rescue =>err
+        #   puts err
+        #   log err
+        # end
       end
     end
 
@@ -240,9 +240,8 @@ module LogfileTransfer
     @threads.each { |t| t.join }
   end
 
-  def self.run argv, port, handlers, working_directory
+  def self.run argv, port, working_directory
     @port = port
-    @handlers = handlers
 
     if argv.length < 1
       puts Prompt_cmdline

@@ -14,11 +14,28 @@ class Test < LogfileTransfer::Handler
   # scribe_client.log(line.chop, tag)
 
   def handle log_path, log_fn, line, line_count
-  	puts line
+  	puts "#{log_path}, #{log_fn}, #{line_count}"
   end
 
 end
 
-handlers = {ToDataCenter: Test.new}
+class Test1 < LogfileTransfer::Handler
 
-LogfileTransfer.run ARGV, 2001, handlers, File.expand_path(File.dirname(__FILE__))
+  # dot_index = fn.index('.')
+  # tag = fn[index + 1..dot_index - 1]
+  # puts tag
+  # scribe_client = Scribe.new('127.0.0.1:1463')
+  # puts 'sent'
+  # scribe_client.log(line.chop, tag)
+
+  def handle log_path, log_fn, line, line_count
+  	if (line_count % 2) == 0
+  		puts '+++++++++++++++++++'
+  	else
+  		puts '-------------------'
+  	end
+  end
+
+end
+
+LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
