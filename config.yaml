@@ -1,29 +1,26 @@
 ---
 - !ruby/object:LogfileTransfer::FileMonitorObj
-  absolute_path:
-  - /data/webroot/log
-  - /data/abc
+  absolute_path: /home
   dir_disallow: []
   file_disallow:
   - .*
   file_allow:
   - \.log\.
   patterns:
-  - - gamestart\.log\.
+  - - gamestart
     - - !ruby/object:Test {}
-      - !ruby/object:Test1 {}
-  - - gameexit\.log\.
+      - !ruby/object:Test {}
+  - - gameexit
     - - !ruby/object:Test {}
-      - !ruby/object:Test1 {}
+      - !ruby/object:Test {}
 - !ruby/object:LogfileTransfer::FileMonitorObj
-  absolute_path:
-  - /data/webroot/tlog
+  absolute_path: /var
   dir_disallow: []
   file_disallow:
   - .*
   file_allow:
   - \.log\.
   patterns:
-  - - gamestart\.log\.
+  - - gamestart
     - - !ruby/object:Test {}
-      - !ruby/object:Test1 {}
+      - !ruby/object:Test {}

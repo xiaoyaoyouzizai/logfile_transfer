@@ -1,39 +1,36 @@
+# encoding: utf-8
+
 lib_dir = File.join File.dirname(__FILE__), 'lib'
 $:.unshift lib_dir unless $:.include? lib_dir
 
-# require 'scribe'
-require "logfile-transfer.rb"
+require 'scribe'
+require 'logfile_transfer.rb'
 
 class Test < LogfileTransfer::Handler
 
-  # dot_index = fn.index('.')
-  # tag = fn[index + 1..dot_index - 1]
-  # puts tag
-  # scribe_client = Scribe.new('127.0.0.1:1463')
-  # puts 'sent'
-  # scribe_client.log(line.chop, tag)
+  def initialize
+    @scribe_client = Scribe.new('127.0.0.1:1463')
+  end
 
-  def handle log_path, log_fn, line, line_count
-  	puts "#{log_path}, #{log_fn}, #{line_count}"
+  def handle log_path, log_fn, line, line_count, pattern
+    puts "#{log_path}, #{log_fn}, #{line_count}"
   end
 
 end
 
 class Test1 < LogfileTransfer::Handler
+  def initialize
+    @scribe_client = Scribe.new('127.0.0.1:1463')
+  end
 
-  # dot_index = fn.index('.')
-  # tag = fn[index + 1..dot_index - 1]
-  # puts tag
-  # scribe_client = Scribe.new('127.0.0.1:1463')
-  # puts 'sent'
-  # scribe_client.log(line.chop, tag)
-
-  def handle log_path, log_fn, line, line_count
-  	if (line_count % 2) == 0
-  		puts '+++++++++++++++++++'
-  	else
-  		puts '-------------------'
-  	end
+  def handle log_path, log_fn, line, line_count, pattern
+    if (line_count % 2) == 0
+      puts '+++++++++++++++++++'
+    else
+      puts '-------------------'
+    end
+    puts 'sent'
+    @scribe_client.log(line, tag)
   end
 
 end
