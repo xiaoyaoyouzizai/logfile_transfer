@@ -75,9 +75,9 @@ module LogfileTransfer
   def self.close_files curr_time = 0
     if curr_time == 0
       # puts 'close all of files'
-      @files.each do |k, v|
-        v[0].close
-        v[1].close
+      @files.each do |log_file_name, log_files|
+        log_files[0].close
+        log_files[1].close
       end
       # puts 'empty file map'
       @files = {}
@@ -157,15 +157,15 @@ module LogfileTransfer
 
   def self.daemon
     YAML.load_file(@config_file_name).each do |obj|
-      puts obj.absolute_path
-      puts obj.dir_disallow
-      puts obj.file_disallow
-      puts obj.file_allow
+      log "absolute path: #{obj.absolute_path}"
+      log "dir disallow: #{obj.dir_disallow}"
+      log "file disallow: #{obj.file_disallow}"
+      log "file allow: #{obj.file_allow}"
       obj.patterns.each do |pattern, handlers|
-        puts "#{pattern}:"
+        log "pattern: #{pattern}"
         handlers.each do |handler|
-          puts "- -#{handler.class} init."
           handler.init
+          log "- -#{handler.class} initialized."
         end
       end
 
@@ -239,6 +239,9 @@ module LogfileTransfer
           close_files Time.now.to_i
           client.puts(Prompt_running)
           client.puts(@config_file_title)
+          @files.each do |log_file_name, log_files|
+            client.puts "log file: #{log_file_name}, loc file: #{log_files[1].path}, open time: #{Time.at(log_files[2])}, lines: #{log_files[3]}"
+          end
         end
 
         # puts 'client.close'
@@ -292,7 +295,7 @@ module LogfileTransfer
 
       puts Prompt_starting
 
-      # daemonize_app working_directory
+      daemonize_app working_directory
       @daemon_log_file_name = "#{working_directory}/#{@daemon_log_file_name}"
       @daemon_log_file = File.new @daemon_log_file_name, 'a'
       @daemon_log_file.sync = true
