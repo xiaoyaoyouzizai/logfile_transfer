@@ -19,8 +19,11 @@ module LogfileTransfer
   @daemon_log_file_name = 'daemon.log'
 
   class Handler
+    def init
+      raise NotImplementedError.new("#{self.class.name}#init is abstract method.")
+    end
     def handle
-      raise NotImplementedError.new("#{self.class.name}#area is abstract method.")
+      raise NotImplementedError.new("#{self.class.name}#handle is abstract method.")
     end
   end
 
@@ -112,56 +115,63 @@ module LogfileTransfer
           else
             loc_file = File.new(loc_file_name, 'w+')
           end
-          log_file = File.new(log_file_name, 'r')
-          @files[log_file_name] = [log_file, loc_file, Time.now.to_i, 0]
+          loc_file.sync = true
           line_count = 0
-          close_files Time.now.to_i
+          log_file = File.new(log_file_name, 'r')
+          open_time = Time.now.to_i
+          close_files open_time
         end
 
         while line = log_file.gets
+          line_count += 1
           loc = loc_file.gets
-          unless loc
-            line_count += 1
-            fail = false
-            fail_handlers = []
+          if loc
+            next
+          end
 
-            handlers.each do |handler|
-              begin
-                handler.handle log_path, log_fn, line.chop, line_count, pattern
-              rescue => err
-                log "#{log_file_name}, #{line_count}, #{err}"
-                fail_handlers << handler.class
-                fail = true
-              end
-            end
+          fail = false
+          fail_handlers = []
 
-            if fail
-              loc_file.puts "#{line_count}, #{fail_handlers}"
-            else
-              loc_file.puts "#{line_count}"
+          handlers.each do |handler|
+            begin
+              handler.handle log_path, log_fn, line.chop, line_count, pattern
+            rescue => err
+              log "#{log_file_name}, #{line_count}, #{err}"
+              fail_handlers << handler.class
+              fail = true
             end
           end
-        end
 
+          if fail
+            loc_file.puts "#{line_count}, #{fail_handlers}"
+          else
+            loc_file.puts "#{line_count}"
+          end
+
+        end
+        @files[log_file_name] = [log_file, loc_file, open_time, line_count]
         break
       end
     end
   end
 
   def self.daemon
-    YAML.load_file(@config_file).each do |obj|
+    YAML.load_file(@config_file_name).each do |obj|
       puts obj.absolute_path
       puts obj.dir_disallow
       puts obj.file_disallow
       puts obj.file_allow
-      obj.patterns.each do |pattern, handler|
-        puts "#{pattern}: #{handler}"
+      obj.patterns.each do |pattern, handlers|
+        puts "#{pattern}:"
+        handlers.each do |handler|
+          puts "- -#{handler.class} init."
+          handler.init
+        end
       end
 
       @threads << Thread.new do
         begin
           m = FileMonitor.new(obj.absolute_path)
-
 
           m.filter_dirs do
             obj.dir_disallow.each do |dir|
@@ -211,13 +221,13 @@ module LogfileTransfer
           client.puts(Prompt_exiting)
           $exit_flag = true;
 
-          YAML.load_file(@config_file).each do |obj|
+          YAML.load_file(@config_file_name).each do |obj|
             system "touch #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
 
           sleep 1
 
-          YAML.load_file(@config_file).each do |obj|
+          YAML.load_file(@config_file_name).each do |obj|
             system "unlink #{obj.absolute_path}/#{Stop_cmd_file_name}"
           end
 
@@ -264,17 +274,17 @@ module LogfileTransfer
     case cmd
     when 'start'
       if argv.length < 2
-        @config_file = "#{working_directory}/config.yaml"
+        @config_file_name = "#{working_directory}/config.yaml"
       elsif argv[1][0] == '/'
-        @config_file = argv[1]
+        @config_file_name = argv[1]
       else
-        @config_file = "#{working_directory}/#{argv[1]}"
+        @config_file_name = "#{working_directory}/#{argv[1]}"
       end
 
-      @config_file_title = "config file: #{@config_file}"
+      @config_file_title = "config file: #{@config_file_name}"
 
-      unless File.exist? @config_file
-        puts "#{@config_file_title} is not exist!"
+      unless File.exist? @config_file_name
+        puts "#{@config_file_title} no exist!"
         exit
       end
 
@@ -285,6 +295,7 @@ module LogfileTransfer
       # daemonize_app working_directory
       @daemon_log_file_name = "#{working_directory}/#{@daemon_log_file_name}"
       @daemon_log_file = File.new @daemon_log_file_name, 'a'
+      @daemon_log_file.sync = true
       log "-------------#{Time.now}-----------------"
       daemon
     when /stop|status/

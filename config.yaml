@@ -1,6 +1,6 @@
 ---
 - !ruby/object:LogfileTransfer::FileMonitorObj
-  absolute_path: /home
+  absolute_path: /data/webroot/log
   dir_disallow: []
   file_disallow:
   - .*
@@ -9,12 +9,12 @@
   patterns:
   - - gamestart
     - - !ruby/object:Test {}
-      - !ruby/object:Test {}
+      - !ruby/object:Test1 {}
   - - gameexit
     - - !ruby/object:Test {}
-      - !ruby/object:Test {}
+      - !ruby/object:Test1 {}
 - !ruby/object:LogfileTransfer::FileMonitorObj
-  absolute_path: /var
+  absolute_path: /data/webroot/tlog
   dir_disallow: []
   file_disallow:
   - .*
@@ -23,4 +23,4 @@
   patterns:
   - - gamestart
     - - !ruby/object:Test {}
-      - !ruby/object:Test {}
+      - !ruby/object:Test1 {}
