@@ -191,7 +191,7 @@ module LogfileTransfer
           end
 
           m.run do |events|
-            break if $exit_flag
+            break if @exit_flag
             events.each do |event|
               flags = event.flags
               if flags.include?(:modify) or flags.include?(:moved_to) or flags.include?(:create)
@@ -219,7 +219,7 @@ module LogfileTransfer
         case cmd.chop
         when 'stop'
           client.puts(Prompt_exiting)
-          $exit_flag = true;
+          @exit_flag = true;
 
           YAML.load_file(@config_file_name).each do |obj|
             system "touch #{obj.absolute_path}/#{Stop_cmd_file_name}"
@@ -272,7 +272,7 @@ module LogfileTransfer
     cmd = argv[0]
     # puts "cmd: #{cmd}"
 
-    $exit_flag = false;
+    @exit_flag = false;
 
     case cmd
     when 'start'
