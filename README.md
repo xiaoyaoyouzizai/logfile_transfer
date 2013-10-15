@@ -1,5 +1,5 @@
 logfile-transfer
 ================
 
-Ruby monitoring and transform logfiles
+Ruby monitoring and transform logfiles daemon.
 
