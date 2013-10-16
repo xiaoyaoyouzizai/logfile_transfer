@@ -8,9 +8,9 @@ sudo gem install logfile_transfer
 
 ##Examples
 
-Edit test.rb:
-----------------
-require 'logfile_transfer.rb'
+###Edit test.rb
+
+require 'logfile_transfer'
 
 class Test < LogfileTransfer::Handler
 
@@ -25,8 +25,7 @@ end
 
 LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
 
-Edit config.yaml
-----------------
+###Edit config.yaml
 
 ---
 - !ruby/object:LogfileTransfer::FileMonitorObj
@@ -40,22 +39,21 @@ Edit config.yaml
   - - .*
     - - !ruby/object:Test {}
 
-Run
----------------
+##Run
+
 sudo Ruby test.rb start
 
-Stop
----------------
+##Stop
+
 Ruby test.rb stop
 
-Status
----------------
+##Status
+
 Ruby test.rb status
 
-Multiple folders, different log and more Handler in a daemon process
-===================
+##Multiple folders, different log and more Handler in a daemon process
 
-Edit test.rb:
+###Edit test.rb:
 ----------------
 require 'logfile_transfer.rb'
 
