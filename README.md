@@ -1,66 +1,68 @@
-#Logfile Transfer
+# Logfile Transfer
 
 Ruby monitoring and transform logfiles daemon.
 
-##Installation
+## Installation
 
-  gem install filemonitor  # you may need to run:sudo gem install logfile_transfer
+    gem install filemonitor  # you may need to run:sudo gem install logfile_transfer
 
-##Examples
+## Examples
 
-###Edit test.rb
+### Edit test.rb
 
-  require 'logfile_transfer'
+    require 'logfile_transfer'
 
-  class Test < LogfileTransfer::Handler
+    class Test < LogfileTransfer::Handler
 
-    def init
+      def init
+      end
+
+      def handle log_path, log_fn, line, line_count, pattern
+        puts "#{log_path}, #{log_fn}, #{line_count}, #{pattern}"
+      end
+
     end
 
-    def handle log_path, log_fn, line, line_count, pattern
-      puts "#{log_path}, #{log_fn}, #{line_count}, #{pattern}"
-    end
+    LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
 
-  end
+### Edit config.yaml
 
-  LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
+    ---
+    - !ruby/object:LogfileTransfer::FileMonitorObj
+      absolute_path: /data/webroot/log
+      dir_disallow: []
+      file_disallow:
+      - .*
+      file_allow:
+      - \.log\.
+      patterns:
+      - - .*
+        - - !ruby/object:Test {}
 
-###Edit config.yaml
+## Run
+  If you are root user
+    Ruby test.rb start
+  else
+    sudo Ruby test.rb start
 
-  ---
-  - !ruby/object:LogfileTransfer::FileMonitorObj
-    absolute_path: /data/webroot/log
-    dir_disallow: []
-    file_disallow:
-    - .*
-    file_allow:
-    - \.log\.
-    patterns:
-    - - .*
-      - - !ruby/object:Test {}
+## Stop
 
-##Run
-
-  sudo Ruby test.rb start
-
-##Stop
-
-  Ruby test.rb stop
+    Ruby test.rb stop
 
 ##Status
 
-  Ruby test.rb status
+    Ruby test.rb status
 
 ##Multiple folders, different log and more Handler in a daemon process
 
-###Edit test.rb:
-----------------
-require 'logfile_transfer.rb'
+###Edit test.rb
 
-class Test < LogfileTransfer::Handler
+    require 'logfile_transfer.rb'
 
-  def init
-  end
+    class Test < LogfileTransfer::Handler
+
+      def init
+      end
 
   def handle log_path, log_fn, line, line_count, pattern
     puts "#{log_path}, #{log_fn}, #{line_count}, #{pattern}"
