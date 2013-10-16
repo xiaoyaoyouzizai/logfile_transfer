@@ -3,7 +3,7 @@ Logfile Transfer
 
 Ruby monitoring and transform logfiles daemon.
 
-Installation
+#Installation
 ================
 sudo gem install logfile_transfer
 
