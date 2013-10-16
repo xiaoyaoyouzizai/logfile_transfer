@@ -24,7 +24,7 @@ Ruby monitoring and transform logfiles daemon.
       end
 
     end
-
+    # The daemon binding on port 2001, change it in different logfile transfer daemon
     LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
 
 ### Edit config.yaml
@@ -43,18 +43,18 @@ Ruby monitoring and transform logfiles daemon.
 
 ## Run
 
-    # If you are root user, run:
+    # as root user, run:
     Ruby test.rb start
     # you may need to run:
     sudo Ruby test.rb start
 
-## Stop
-
-    Ruby test.rb stop
-
 ## Status
 
     Ruby test.rb status
+
+## Stop
+
+    Ruby test.rb stop
 
 ## Multiple folders, different log and more Handler in a daemon process
 
