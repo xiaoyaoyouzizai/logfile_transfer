@@ -24,7 +24,8 @@ Ruby monitoring and transform logfiles daemon.
       end
 
     end
-    # The daemon binding on port 2001, change it in different logfile transfer daemon
+
+    # The daemon binding on port 2001, make it different in other daemon
     LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
 
 ### Edit config.yaml
@@ -60,7 +61,7 @@ Ruby monitoring and transform logfiles daemon.
 
 ### Edit test.rb
 
-    require 'logfile_transfer.rb'
+    require 'logfile_transfer'
 
     class Test < LogfileTransfer::Handler
 
