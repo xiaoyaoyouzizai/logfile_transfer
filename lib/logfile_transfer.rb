@@ -156,6 +156,7 @@ module LogfileTransfer
   end
 
   def self.daemon
+    @monitor_paths = []
     YAML.load_file(@config_file_name).each do |obj|
       log "absolute path: #{obj.absolute_path}"
       log "dir disallow: #{obj.dir_disallow}"
@@ -169,6 +170,7 @@ module LogfileTransfer
         end
       end
 
+      @monitor_paths << obj.absolute_path
       @threads << Thread.new do
         begin
           m = FileMonitor.new(obj.absolute_path)
@@ -221,14 +223,14 @@ module LogfileTransfer
           client.puts(Prompt_exiting)
           @exit_flag = true;
 
-          YAML.load_file(@config_file_name).each do |obj|
-            system "touch #{obj.absolute_path}/#{Stop_cmd_file_name}"
+          @monitor_paths.each do |absolute_path|
+            system "touch #{absolute_path}/#{Stop_cmd_file_name}"
           end
 
           sleep 1
 
-          YAML.load_file(@config_file_name).each do |obj|
-            system "unlink #{obj.absolute_path}/#{Stop_cmd_file_name}"
+          @monitor_paths.each do |absolute_path|
+            system "unlink #{absolute_path}/#{Stop_cmd_file_name}"
           end
 
           # puts 'client.close'
@@ -296,6 +298,7 @@ module LogfileTransfer
       puts Prompt_starting
 
       daemonize_app working_directory
+
       @daemon_log_file_name = "#{working_directory}/#{@daemon_log_file_name}"
       @daemon_log_file = File.new @daemon_log_file_name, 'a'
       @daemon_log_file.sync = true
