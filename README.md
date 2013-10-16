@@ -4,52 +4,52 @@ Ruby monitoring and transform logfiles daemon.
 
 ##Installation
 
-sudo gem install logfile_transfer
+  gem install filemonitor  # you may need to run:sudo gem install logfile_transfer
 
 ##Examples
 
 ###Edit test.rb
 
-require 'logfile_transfer'
+  require 'logfile_transfer'
 
-class Test < LogfileTransfer::Handler
+  class Test < LogfileTransfer::Handler
 
-  def init
+    def init
+    end
+
+    def handle log_path, log_fn, line, line_count, pattern
+      puts "#{log_path}, #{log_fn}, #{line_count}, #{pattern}"
+    end
+
   end
 
-  def handle log_path, log_fn, line, line_count, pattern
-    puts "#{log_path}, #{log_fn}, #{line_count}, #{pattern}"
-  end
-
-end
-
-LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
+  LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
 
 ###Edit config.yaml
 
----
-- !ruby/object:LogfileTransfer::FileMonitorObj
-  absolute_path: /data/webroot/log
-  dir_disallow: []
-  file_disallow:
-  - .*
-  file_allow:
-  - \.log\.
-  patterns:
-  - - .*
-    - - !ruby/object:Test {}
+  ---
+  - !ruby/object:LogfileTransfer::FileMonitorObj
+    absolute_path: /data/webroot/log
+    dir_disallow: []
+    file_disallow:
+    - .*
+    file_allow:
+    - \.log\.
+    patterns:
+    - - .*
+      - - !ruby/object:Test {}
 
 ##Run
 
-sudo Ruby test.rb start
+  sudo Ruby test.rb start
 
 ##Stop
 
-Ruby test.rb stop
+  Ruby test.rb stop
 
 ##Status
 
-Ruby test.rb status
+  Ruby test.rb status
 
 ##Multiple folders, different log and more Handler in a daemon process
 
