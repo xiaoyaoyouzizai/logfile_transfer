@@ -1,0 +1,20 @@
+-------------2013-10-16 16:49:03 +0800-----------------
+absolute path: /data/webroot/log
+dir disallow: []
+file disallow: [".*"]
+file allow: ["\\.log\\."]
+pattern: gamestart
+- -Test initialized.
+- -Test1 initialized.
+pattern: gameexit
+- -Test initialized.
+- -Test1 initialized.
+absolute path: /data/webroot/tlog
+dir disallow: []
+file disallow: [".*"]
+file allow: ["\\.log\\."]
+pattern: gamestart
+- -Test initialized.
+- -Test1 initialized.
+/data/webroot/log file monitor thread exit.
+/data/webroot/tlog file monitor thread exit.
