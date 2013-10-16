@@ -1,14 +1,13 @@
-Logfile Transfer
-================
+#Logfile Transfer
 
 Ruby monitoring and transform logfiles daemon.
 
-#Installation
-================
+##Installation
+
 sudo gem install logfile_transfer
 
-Examples
-================
+##Examples
+
 Edit test.rb:
 ----------------
 require 'logfile_transfer.rb'
