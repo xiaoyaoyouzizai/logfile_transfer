@@ -5,12 +5,12 @@ require 'socket'
 require 'yaml'
 
 module LogfileTransfer
-  Stop_cmd_file_name = '.sync_cmd_stop'
-  Prompt_cmdline = 'ruby your.rb start [config.yaml]|stop|status'
-  Prompt_running = 'daemon is running.'
-  Prompt_exiting = 'daemon is exiting.'
-  Prompt_starting = 'daemon is starting.'
-  Prompt_no_running = 'daemon no running.'
+  STOP_CMD_FILE_NAME = '.sync_cmd_stop'
+  PROMPT_CMDLINE = 'ruby your.rb start [config.yaml]|stop|status'
+  PROMPT_RUNNING = 'daemon is running.'
+  PROMPT_EXITING = 'daemon is exiting.'
+  PROMPT_STARTING = 'daemon is starting.'
+  PROMPT_NO_RUNNING = 'daemon no running.'
 
   @hostname = 'localhost'
   @port = 2001
@@ -84,7 +84,7 @@ module LogfileTransfer
       @daemon_log_file.close
     else
       @files.each do |k, v|
-        if (curr_time - v[2]) > 86400000
+        if (curr_time - v[2]) > 86400
           puts "close #{k}"
           v[0].close
           v[1].close
@@ -100,7 +100,7 @@ module LogfileTransfer
         index = log_file_name.rindex('/')
         index += 1
         log_path = log_file_name[0, index]
-        log_fn = log_file_name[index..log_file_name.length]
+        log_fn = log_file_name[index..(log_file_name.length-1)]
 
         loc_path = "#{log_path}.loc"
         loc_file_name = "#{loc_path}/#{log_fn}"
@@ -189,7 +189,7 @@ module LogfileTransfer
             obj.file_allow.each do |file|
               allow /#{file}/
             end
-            allow /#{Stop_cmd_file_name}$/
+            allow /#{STOP_CMD_FILE_NAME}$/
           end
 
           m.run do |events|
@@ -220,17 +220,17 @@ module LogfileTransfer
 
         case cmd.chop
         when 'stop'
-          client.puts(Prompt_exiting)
+          client.puts(PROMPT_EXITING)
           @exit_flag = true;
 
           @monitor_paths.each do |absolute_path|
-            system "touch #{absolute_path}/#{Stop_cmd_file_name}"
+            system "touch #{absolute_path}/#{STOP_CMD_FILE_NAME}"
           end
 
           sleep 1
 
           @monitor_paths.each do |absolute_path|
-            system "unlink #{absolute_path}/#{Stop_cmd_file_name}"
+            system "unlink #{absolute_path}/#{STOP_CMD_FILE_NAME}"
           end
 
           # puts 'client.close'
@@ -239,7 +239,7 @@ module LogfileTransfer
           break;
         when 'status'
           close_files Time.now.to_i
-          client.puts(Prompt_running)
+          client.puts(PROMPT_RUNNING)
           client.puts(@config_file_title)
           @files.each do |log_file_name, log_files|
             client.puts "log file: #{log_file_name}, loc file: #{log_files[1].path}, open time: #{Time.at(log_files[2])}, lines: #{log_files[3]}"
@@ -267,7 +267,7 @@ module LogfileTransfer
     @port = port
 
     if argv.length < 1
-      puts Prompt_cmdline
+      puts PROMPT_CMDLINE
       exit
     end
 
@@ -295,7 +295,7 @@ module LogfileTransfer
 
       exit if conn 'status'
 
-      puts Prompt_starting
+      puts PROMPT_STARTING
 
       daemonize_app working_directory
 
@@ -305,9 +305,9 @@ module LogfileTransfer
       log "-------------#{Time.now}-----------------"
       daemon
     when /stop|status/
-      puts Prompt_no_running unless conn cmd
+      puts PROMPT_NO_RUNNING unless conn cmd
     else
-      puts Prompt_cmdline
+      puts PROMPT_CMDLINE
     end
   end
 end
