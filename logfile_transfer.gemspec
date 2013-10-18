@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|  
   s.name        = 'logfile_transfer'
-  s.version     = '0.1.0'
-  s.date        = '2013-10-10'
+  s.version     = '0.1.1'
+  s.date        = '2013-10-18'
   s.summary     = 'logfile transfer'
   s.description = 'Ruby monitoring and transform logfiles daemon.'
   s.author      = 'Cong Yan'
