@@ -1,4 +1,5 @@
-# encoding: utf-8
+#!/usr/bin/env ruby
+# coding: utf-8
 
 require 'file-monitor'
 require 'socket'
@@ -13,7 +14,7 @@ module LogfileTransfer
   PROMPT_NO_RUNNING = 'daemon no running.'
 
   @hostname = 'localhost'
-  @port = 2001
+  @port = 0
   @files = {}
   @threads = []
   @daemon_log_file_name = 'daemon.log'
@@ -66,30 +67,20 @@ module LogfileTransfer
 
     true
   rescue =>e
-    # puts "#{e}"
     false
   ensure  
-    s.close unless s==nil
+    s.close if s
   end
 
   def self.close_files curr_time = 0
-    if curr_time == 0
-      # puts 'close all of files'
-      @files.each do |log_file_name, log_files|
+    @files.delete_if do |log_file_name, log_files|
+      if (curr_time - log_files[2]) > 86400
+        log "close #{log_file_name}"
         log_files[0].close
         log_files[1].close
-      end
-      # puts 'empty file map'
-      @files = {}
-      @daemon_log_file.close
-    else
-      @files.each do |k, v|
-        if (curr_time - v[2]) > 86400
-          puts "close #{k}"
-          v[0].close
-          v[1].close
-          @files[k] = []
-        end
+        true
+      else
+        false
       end
     end
   end
@@ -166,7 +157,7 @@ module LogfileTransfer
         log "pattern: #{pattern}"
         handlers.each do |handler|
           handler.init
-          log "- -#{handler.class} initialized."
+          log "- - #{handler.class} initialized."
         end
       end
 
@@ -204,7 +195,6 @@ module LogfileTransfer
 
           log "#{obj.absolute_path} file monitor thread exit."
         rescue =>err
-          # puts err
           log err
         end
       end
@@ -233,7 +223,6 @@ module LogfileTransfer
             system "unlink #{absolute_path}/#{STOP_CMD_FILE_NAME}"
           end
 
-          # puts 'client.close'
           client.close
 
           break;
@@ -246,18 +235,13 @@ module LogfileTransfer
           end
         end
 
-        # puts 'client.close'
         client.close
       end
 
       close_files
-      # @files.each do |k, v|
-      #   puts "#{k}: #{v}"
-      # end
-      unless server == nil
-        # puts 'server.close'
-        server.close
-      end
+      @daemon_log_file.close
+      log 'server.close'
+      server.close
     end
 
     @threads.each { |t| t.join }
@@ -272,7 +256,6 @@ module LogfileTransfer
     end
 
     cmd = argv[0]
-    # puts "cmd: #{cmd}"
 
     @exit_flag = false;
 

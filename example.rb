@@ -1,4 +1,7 @@
-# encoding: utf-8
+#!/usr/bin/env ruby
+# coding: utf-8
+
+require 'rubygems'
 
 lib_dir = File.join File.dirname(__FILE__), 'lib'
 $:.unshift lib_dir unless $:.include? lib_dir
@@ -31,4 +34,4 @@ class Test1 < LogfileTransfer::Handler
 
 end
 
-LogfileTransfer.run ARGV, 2001, File.expand_path(File.dirname(__FILE__))
+LogfileTransfer.run ARGV, 2000, File.expand_path(File.dirname(__FILE__))
